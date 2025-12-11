@@ -10,6 +10,9 @@ export default function Flipbook() {
   const [error, setError] = useState('')
   const bookRef = useRef()
 
+  const flipPrev = () => bookRef.current?.pageFlip?.()?.flipPrev()
+  const flipNext = () => bookRef.current?.pageFlip?.()?.flipNext()
+
   useEffect(() => {
     const run = async () => {
       try {
@@ -26,6 +29,15 @@ export default function Flipbook() {
     }
     run()
   }, [id])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowLeft') flipPrev()
+      if (e.key === 'ArrowRight') flipNext()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   if (loading) {
     return (
@@ -52,7 +64,7 @@ export default function Flipbook() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Flipbook – ID: {id}</h1>
         <div className="space-x-2">
@@ -71,32 +83,46 @@ export default function Flipbook() {
         </div>
       </div>
 
-      <div className="bg-white shadow p-4 overflow-auto">
-        <HTMLFlipBook
-          width={500}
-          height={700}
-          size="stretch"
-          minWidth={315}
-          maxWidth={1000}
-          minHeight={400}
-          maxHeight={1536}
-          maxShadowOpacity={0.3}
-          showCover={false}
-          mobileScrollSupport={true}
-          ref={bookRef}
-          className="mx-auto"
-        >
-          {pages.map((url, idx) => (
-            <div key={idx} className="page bg-white">
-              <img
-                src={url}
-                alt={`page-${idx + 1}`}
-                className="block w-full h-full object-contain"
-                loading="lazy"
-              />
-            </div>
-          ))}
-        </HTMLFlipBook>
+      <div className="relative rounded-lg p-6 bg-gradient-to-br from-neutral-100 to-neutral-200 shadow-inner">
+        <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 h-[calc(100%-3rem)] w-2 rounded bg-gradient-to-r from-black/10 via-black/5 to-transparent"></div>
+
+        <div className="relative z-0 mx-auto">
+          <HTMLFlipBook
+            width={560}
+            height={760}
+            size="stretch"
+            minWidth={360}
+            maxWidth={1200}
+            minHeight={420}
+            maxHeight={1600}
+            maxShadowOpacity={0.5}
+            drawShadow={true}
+            flippingTime={700}
+            showCover={false}
+            usePortrait={false}
+            mobileScrollSupport={true}
+            ref={bookRef}
+            className="mx-auto drop-shadow-2xl"
+          >
+            {pages.map((url, idx) => (
+              <div key={idx} className="page bg-neutral-50">
+                <div className="relative w-full h-full">
+                  <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-black/10 to-transparent" />
+                  <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-black/10 to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(0,0,0,0.03),transparent_70%)]" />
+                  <img
+                    src={url}
+                    alt={`page-${idx + 1}`}
+                    className="block w-full h-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            ))}
+          </HTMLFlipBook>
+          <div className="absolute inset-y-0 left-0 w-[15%] z-10 cursor-pointer" onClick={flipPrev} />
+          <div className="absolute inset-y-0 right-0 w-[15%] z-10 cursor-pointer" onClick={flipNext} />
+        </div>
       </div>
 
       <div className="mt-4">

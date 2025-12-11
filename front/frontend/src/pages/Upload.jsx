@@ -6,6 +6,7 @@ export default function Upload() {
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
   const navigate = useNavigate()
 
   const onFileChange = (e) => {
@@ -16,6 +17,32 @@ export default function Upload() {
     } else {
       setFile(null)
       setError('Veuillez sélectionner un fichier PDF.')
+    }
+  }
+
+  const onDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isDragging) setIsDragging(true)
+  }
+
+  const onDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const onDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    setError('')
+    const f = e.dataTransfer?.files?.[0]
+    if (f && (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'))) {
+      setFile(f)
+    } else {
+      setFile(null)
+      setError('Veuillez déposer un fichier PDF.')
     }
   }
 
@@ -32,7 +59,7 @@ export default function Upload() {
       form.append('file', file)
 
       const res = await api.post('/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        // Let Axios set the correct multipart boundary automatically
       })
 
       const id = res?.data?.id
@@ -51,12 +78,29 @@ export default function Upload() {
       <h1 className="text-2xl font-semibold mb-6">Uploader un PDF</h1>
 
       <form onSubmit={onSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow">
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={onFileChange}
-          className="block w-full text-sm text-gray-700"
-        />
+        <div
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`border-2 border-dashed rounded p-6 text-center transition-colors ${
+            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+          }`}
+        >
+          <p className="text-sm text-gray-700 mb-2">Glissez-déposez votre PDF ici</p>
+          <p className="text-xs text-gray-500 mb-4">ou</p>
+          <label className="inline-block px-3 py-1 bg-gray-100 rounded cursor-pointer text-sm">
+            Choisir un fichier
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={onFileChange}
+              className="hidden"
+            />
+          </label>
+          {file && (
+            <div className="mt-3 text-xs text-gray-600">Sélectionné: {file.name}</div>
+          )}
+        </div>
 
         {error && (
           <div className="text-red-600 text-sm">{error}</div>
