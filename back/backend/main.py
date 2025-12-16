@@ -8,6 +8,11 @@ from typing import List
 from pdf2image import convert_from_path
 from PIL import Image
 import shutil
+import os
+import cloudinary
+import cloudinary.uploader
+from cloudinary.search import Search
+from dotenv import load_dotenv
 
 app = FastAPI(title="PDF Flipbook Backend")
 
@@ -27,8 +32,31 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Load environment from backend folder explicitly
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+
 # Serve static files
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
+
+# -----------------------------
+# Cloudinary
+# -----------------------------
+cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+api_key = os.getenv("CLOUDINARY_API_KEY")
+api_secret = os.getenv("CLOUDINARY_API_SECRET")
+
+if cloud_name and api_key and api_secret:
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret,
+        secure=True,
+    )
+    print("[Cloudinary] Configured with cloud_name=", cloud_name)
+else:
+    cloudinary.config(secure=True)
+    print("[Cloudinary] Missing credentials. Uploads will be skipped or fallback to local.")
 
 
 # -----------------------------
@@ -40,7 +68,7 @@ def read_root():
 
 
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(request: Request, file: UploadFile = File(...)):
     # Validate file
     filename = file.filename or ""
     content_type = file.content_type or ""
@@ -78,8 +106,28 @@ async def upload_pdf(file: UploadFile = File(...)):
             img.save(pages_dir / f"{i}.png", "PNG")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur sauvegarde images: {e}")
+    # Upload to Cloudinary
+    pages_urls: List[str] = []
+    cloudinary_enabled = bool(cloud_name and api_key and api_secret)
+    if cloudinary_enabled:
+        try:
+            for i in range(1, len(images) + 1):
+                local_path = str(pages_dir / f"{i}.png")
+                public_id = f"flipbooks/{doc_id}/{i}"
+                res = cloudinary.uploader.upload(
+                    local_path,
+                    public_id=public_id,
+                    overwrite=True,
+                    resource_type="image",
+                )
+                pages_urls.append(res.get("secure_url"))
+            print(f"[Cloudinary] Uploaded {len(pages_urls)} pages to folder flipbooks/{doc_id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erreur upload Cloudinary: {e}")
 
-    return {"id": doc_id}
+    base_url = str(request.base_url).rstrip("/")
+    share_url = f"{base_url}/flipbook/{doc_id}"
+    return {"id": doc_id, "share_url": share_url, "pages": pages_urls}
 
 
 @app.get("/flipbook/{doc_id}")
@@ -87,19 +135,26 @@ async def get_flipbook(doc_id: str, request: Request):
     pages_dir = UPLOADS_DIR / doc_id / "pages"
 
     if not pages_dir.exists():
+        cloudinary_enabled = bool(cloud_name and api_key and api_secret)
+        if not cloudinary_enabled:
+            raise HTTPException(status_code=404, detail="Document introuvable")
+
+    cloudinary_enabled = bool(cloud_name and api_key and api_secret)
+    if cloudinary_enabled:
+        try:
+            result = Search().expression(f"folder:flipbooks/{doc_id}").sort_by("public_id","asc").max_results(500).execute()
+            resources = result.get("resources", [])
+            pages_urls = [r.get("secure_url") for r in resources]
+            if pages_urls:
+                return JSONResponse({"pages": pages_urls})
+        except Exception:
+            pass
+
+    images = sorted(pages_dir.glob("*.png"), key=lambda p: int(p.stem))
+    if not images:
         raise HTTPException(status_code=404, detail="Document introuvable")
-
-    images = sorted(
-        pages_dir.glob("*.png"),
-        key=lambda p: int(p.stem)
-    )
-
     base_url = str(request.base_url).rstrip("/")
-    pages_urls = [
-        f"{base_url}/uploads/{doc_id}/pages/{img.name}"
-        for img in images
-    ]
-
+    pages_urls = [f"{base_url}/uploads/{doc_id}/pages/{img.name}" for img in images]
     return JSONResponse({"pages": pages_urls})
 
 
