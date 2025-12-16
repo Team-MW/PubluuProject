@@ -13,6 +13,7 @@ import cloudinary
 import cloudinary.uploader
 from cloudinary.search import Search
 from dotenv import load_dotenv
+import io
 
 app = FastAPI(title="PDF Flipbook Backend")
 
@@ -26,16 +27,14 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Directories
+# Directories / Environment
 # -----------------------------
 BASE_DIR = Path(__file__).resolve().parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Load environment from backend folder explicitly
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-# Serve static files
+# Serve static files for local fallback
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
@@ -82,7 +81,7 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
     pages_dir = doc_dir / "pages"
     pages_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save PDF
+    # Save PDF locally
     pdf_path = doc_dir / "original.pdf"
     try:
         with pdf_path.open("wb") as buffer:
@@ -90,7 +89,7 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
     finally:
         await file.close()
 
-    # Convert PDF to images
+    # Convert PDF to images (from local file)
     try:
         images: List[Image.Image] = convert_from_path(
             str(pdf_path),
@@ -100,13 +99,14 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur conversion PDF: {e}")
 
-    # Save images
+    # Save images locally
     try:
         for i, img in enumerate(images, start=1):
             img.save(pages_dir / f"{i}.png", "PNG")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur sauvegarde images: {e}")
-    # Upload to Cloudinary
+
+    # Upload to Cloudinary (optional)
     pages_urls: List[str] = []
     cloudinary_enabled = bool(cloud_name and api_key and api_secret)
     if cloudinary_enabled:

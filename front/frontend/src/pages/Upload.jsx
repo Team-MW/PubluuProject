@@ -115,6 +115,18 @@ export default function Upload() {
         </button>
       </form>
 
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white/95 rounded-lg shadow p-6 flex flex-col items-center gap-3 w-[90%] max-w-sm">
+            <div className="h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="text-sm text-gray-700 text-center">
+              Traitement du PDF en flipbook...<br/>
+              Cela peut prendre quelques secondes selon la taille du document.
+            </div>
+          </div>
+        </div>
+      )}
+
       <p className="text-gray-500 text-sm mt-4">Le backend doit écouter sur http://localhost:8000</p>
     </div>
   )
