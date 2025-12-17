@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route, Link } from 'react-router-dom'
 import Upload from './pages/Upload'
 import Flipbook from './pages/Flipbook'
+import Home from './pages/Home'
 
 export default function App() {
   return (
@@ -14,7 +15,8 @@ export default function App() {
 
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<Upload />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/upload" element={<Upload />} />
           <Route path="/flipbook/:id" element={<Flipbook />} />
         </Routes>
       </main>
