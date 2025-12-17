@@ -138,14 +138,14 @@ export default function Flipbook() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { onFlipStart(); flipPrev() }}
-            className="px-3 py-1 rounded border border-gray-900 text-gray-900 bg-white hover:bg-gray-100"
+            className="px-3 py-1 rounded border border-gray-900 text-gray-900 bg-white hover:bg-gray-100 transition active:translate-y-[1px] shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-black/20"
           >
             ◀︎ Précédent
           </button>
           <span className="text-sm text-gray-600">Page {currentPage + 1} / {pages.length}</span>
           <button
             onClick={() => { onFlipStart(); flipNext() }}
-            className="px-3 py-1 rounded border border-gray-900 text-gray-900 bg-white hover:bg-gray-100"
+            className="px-3 py-1 rounded border border-gray-900 text-gray-900 bg-white hover:bg-gray-100 transition active:translate-y-[1px] shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-black/20"
           >
             Suivant ▶︎
           </button>
@@ -154,7 +154,7 @@ export default function Flipbook() {
               const url = `${window.location.origin}/flipbook/${id}`
               try { await navigator.clipboard.writeText(url) } catch {}
             }}
-            className="px-3 py-1 bg-black text-white rounded hover:bg-black/90"
+            className="px-3 py-1 bg-black text-white rounded hover:bg-black/90 transition active:translate-y-[1px] shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-black/30"
             title="Copier le lien"
           >
             Copier le lien
@@ -222,9 +222,7 @@ export default function Flipbook() {
         </div>
       </div>
 
-      <div className="mt-4">
-        <Link className="text-blue-600 underline" to="/">← Retour à l'upload</Link>
-      </div>
+      
     </div>
   )
 }
