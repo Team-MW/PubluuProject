@@ -109,7 +109,7 @@ export default function Upload() {
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+          className="px-4 py-2 rounded bg-black text-white hover:bg-black/90 disabled:opacity-50"
         >
           {loading ? 'Envoi...' : 'Envoyer'}
         </button>
@@ -127,7 +127,7 @@ export default function Upload() {
         </div>
       )}
 
-      <p className="text-gray-500 text-sm mt-4">Le backend doit écouter sur http://localhost:8000</p>
+      
     </div>
   )
 }

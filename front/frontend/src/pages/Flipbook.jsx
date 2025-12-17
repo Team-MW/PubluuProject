@@ -138,14 +138,14 @@ export default function Flipbook() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { onFlipStart(); flipPrev() }}
-            className="px-3 py-1 bg-white border border-gray-200 rounded shadow-sm hover:bg-gray-50"
+            className="px-3 py-1 rounded border border-gray-900 text-gray-900 bg-white hover:bg-gray-100"
           >
             ◀︎ Précédent
           </button>
           <span className="text-sm text-gray-600">Page {currentPage + 1} / {pages.length}</span>
           <button
             onClick={() => { onFlipStart(); flipNext() }}
-            className="px-3 py-1 bg-white border border-gray-200 rounded shadow-sm hover:bg-gray-50"
+            className="px-3 py-1 rounded border border-gray-900 text-gray-900 bg-white hover:bg-gray-100"
           >
             Suivant ▶︎
           </button>
@@ -154,7 +154,7 @@ export default function Flipbook() {
               const url = `${window.location.origin}/flipbook/${id}`
               try { await navigator.clipboard.writeText(url) } catch {}
             }}
-            className="px-3 py-1 bg-blue-600 text-white rounded shadow hover:bg-blue-700"
+            className="px-3 py-1 bg-black text-white rounded hover:bg-black/90"
             title="Copier le lien"
           >
             Copier le lien

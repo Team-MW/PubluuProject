@@ -20,7 +20,7 @@ export default function App() {
       </main>
 
       <footer className="border-t bg-white text-center text-sm text-gray-500 py-3">
-        <div className="max-w-4xl mx-auto px-4">Local demo – React + FastAPI</div>
+        <div className="max-w-4xl mx-auto px-4">codé par microdidact</div>
       </footer>
     </div>
   )
