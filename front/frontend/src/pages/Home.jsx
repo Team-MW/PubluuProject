@@ -47,6 +47,62 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Features */}
+      <section className="max-w-6xl mx-auto px-4 py-12">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold">Rapide</h3>
+            <p className="mt-2 text-sm text-gray-600">Upload instantané et rendu via Cloudinary. Aucune installation lourde.</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold">Simple</h3>
+            <p className="mt-2 text-sm text-gray-600">Une interface claire pour transformer vos PDF en flipbooks élégants.</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold">Partageable</h3>
+            <p className="mt-2 text-sm text-gray-600">Obtenez une URL sécurisée à partager en un clic.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="max-w-6xl mx-auto px-4 py-12">
+        <h2 className="text-2xl font-bold">Comment ça marche ?</h2>
+        <div className="mt-6 grid md:grid-cols-3 gap-6">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-xs font-semibold text-gray-500">Étape 1</div>
+            <h4 className="mt-1 font-semibold">Uploader</h4>
+            <p className="mt-2 text-sm text-gray-600">Glissez-déposez votre PDF ou sélectionnez-le depuis votre ordinateur.</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-xs font-semibold text-gray-500">Étape 2</div>
+            <h4 className="mt-1 font-semibold">Génération</h4>
+            <p className="mt-2 text-sm text-gray-600">Nous préparons les pages et créons votre flipbook.</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-xs font-semibold text-gray-500">Étape 3</div>
+            <h4 className="mt-1 font-semibold">Partage</h4>
+            <p className="mt-2 text-sm text-gray-600">Copiez le lien du flipbook et partagez-le où vous voulez.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="max-w-6xl mx-auto px-4 py-12">
+        <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow">
+          <h3 className="text-2xl font-bold">Prêt à créer votre flipbook ?</h3>
+          <p className="mt-2 text-gray-600">Commencez maintenant et obtenez une page feuilletable en quelques secondes.</p>
+          <div className="mt-6">
+            <button
+              onClick={() => navigate('/upload')}
+              className="px-6 py-3 rounded-md bg-black text-white hover:bg-black/90 transition active:translate-y-[1px] shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-black/30"
+            >
+              Commencer
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
