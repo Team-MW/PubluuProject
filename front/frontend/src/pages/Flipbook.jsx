@@ -191,7 +191,7 @@ export default function Flipbook() {
                 maxShadowOpacity={0.5}
                 drawShadow={true}
                 flippingTime={700}
-                showCover={false}
+                showCover={true}
                 usePortrait={isMobile}
                 mobileScrollSupport={true}
                 ref={bookRef}
