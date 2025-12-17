@@ -5,13 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from uuid import uuid4
 from pathlib import Path
 from typing import List
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, convert_from_bytes
 from PIL import Image
 import shutil
 import os
 import cloudinary
 import cloudinary.uploader
 from cloudinary.search import Search
+import cloudinary.api
 from dotenv import load_dotenv
 import io
 
@@ -34,8 +35,8 @@ UPLOADS_DIR = BASE_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-# Serve static files for local fallback
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+# Serve static files (no longer used for images, kept for potential future needs)
+# app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 # -----------------------------
@@ -75,55 +76,50 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
     if not filename.lower().endswith(".pdf") and content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Le fichier doit être un PDF")
 
-    # Create folders
-    doc_id = uuid4().hex
-    doc_dir = UPLOADS_DIR / doc_id
-    pages_dir = doc_dir / "pages"
-    pages_dir.mkdir(parents=True, exist_ok=True)
+    # Cloudinary is required for storage
+    cloudinary_enabled = bool(cloud_name and api_key and api_secret)
+    if not cloudinary_enabled:
+        raise HTTPException(status_code=500, detail="Cloudinary non configuré: stockage requis")
 
-    # Save PDF locally
-    pdf_path = doc_dir / "original.pdf"
+    # Generate document id
+    doc_id = uuid4().hex
+
+    # Read PDF bytes into memory
     try:
-        with pdf_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        pdf_bytes = await file.read()
     finally:
         await file.close()
 
-    # Convert PDF to images (from local file)
+    # Convert PDF bytes to images in memory
     try:
-        images: List[Image.Image] = convert_from_path(
-            str(pdf_path),
+        images: List[Image.Image] = convert_from_bytes(
+            pdf_bytes,
             dpi=200,
-            fmt="png"
+            fmt="png",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur conversion PDF: {e}")
 
-    # Save images locally
+    # Upload pages directly to Cloudinary from memory, no local writes
+    pages_urls: List[str] = []
     try:
         for i, img in enumerate(images, start=1):
-            img.save(pages_dir / f"{i}.png", "PNG")
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            buf.seek(0)
+            public_id = f"flipbooks/{doc_id}/{i}"
+            res = cloudinary.uploader.upload(
+                buf,
+                public_id=public_id,
+                overwrite=True,
+                resource_type="image",
+            )
+            secure_url = res.get("secure_url")
+            if secure_url:
+                pages_urls.append(secure_url)
+        print(f"[Cloudinary] Uploaded {len(pages_urls)} pages to folder flipbooks/{doc_id}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur sauvegarde images: {e}")
-
-    # Upload to Cloudinary (optional)
-    pages_urls: List[str] = []
-    cloudinary_enabled = bool(cloud_name and api_key and api_secret)
-    if cloudinary_enabled:
-        try:
-            for i in range(1, len(images) + 1):
-                local_path = str(pages_dir / f"{i}.png")
-                public_id = f"flipbooks/{doc_id}/{i}"
-                res = cloudinary.uploader.upload(
-                    local_path,
-                    public_id=public_id,
-                    overwrite=True,
-                    resource_type="image",
-                )
-                pages_urls.append(res.get("secure_url"))
-            print(f"[Cloudinary] Uploaded {len(pages_urls)} pages to folder flipbooks/{doc_id}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Erreur upload Cloudinary: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur upload Cloudinary: {e}")
 
     base_url = str(request.base_url).rstrip("/")
     share_url = f"{base_url}/flipbook/{doc_id}"
@@ -132,30 +128,59 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
 
 @app.get("/flipbook/{doc_id}")
 async def get_flipbook(doc_id: str, request: Request):
-    pages_dir = UPLOADS_DIR / doc_id / "pages"
-
-    if not pages_dir.exists():
-        cloudinary_enabled = bool(cloud_name and api_key and api_secret)
-        if not cloudinary_enabled:
-            raise HTTPException(status_code=404, detail="Document introuvable")
-
+    # Cloudinary-only retrieval
     cloudinary_enabled = bool(cloud_name and api_key and api_secret)
-    if cloudinary_enabled:
-        try:
-            result = Search().expression(f"folder:flipbooks/{doc_id}").sort_by("public_id","asc").max_results(500).execute()
-            resources = result.get("resources", [])
-            pages_urls = [r.get("secure_url") for r in resources]
-            if pages_urls:
-                return JSONResponse({"pages": pages_urls})
-        except Exception:
-            pass
+    if not cloudinary_enabled:
+        raise HTTPException(status_code=500, detail="Cloudinary non configuré: récupération requise")
 
-    images = sorted(pages_dir.glob("*.png"), key=lambda p: int(p.stem))
-    if not images:
-        raise HTTPException(status_code=404, detail="Document introuvable")
-    base_url = str(request.base_url).rstrip("/")
-    pages_urls = [f"{base_url}/uploads/{doc_id}/pages/{img.name}" for img in images]
-    return JSONResponse({"pages": pages_urls})
+    # Prefer Admin API resources by prefix to avoid Search indexing delay
+    try:
+        prefix = f"flipbooks/{doc_id}/"
+        pages_resources = []
+        next_cursor = None
+        while True:
+            resp = cloudinary.api.resources(
+                type="upload",
+                resource_type="image",
+                prefix=prefix,
+                max_results=500,
+                direction="asc",
+                next_cursor=next_cursor,
+            )
+            pages_resources.extend(resp.get("resources", []))
+            next_cursor = resp.get("next_cursor")
+            if not next_cursor:
+                break
+
+        # Sort by public_id numeric page segment at the end
+        def page_key(r):
+            pid = r.get("public_id", "")
+            try:
+                return int(pid.split("/")[-1])
+            except Exception:
+                return pid
+
+        pages_resources.sort(key=page_key)
+        pages_urls = [r.get("secure_url") for r in pages_resources if r.get("secure_url")]
+        if not pages_urls:
+            # fallback to Search in case Admin API has no match
+            result = (
+                Search()
+                .expression(f"public_id:{prefix}*")
+                .sort_by("public_id", "asc")
+                .max_results(500)
+                .execute()
+            )
+            resources = result.get("resources", [])
+            pages_urls = [r.get("secure_url") for r in resources if r.get("secure_url")]
+
+        if not pages_urls:
+            raise HTTPException(status_code=404, detail="Document introuvable")
+        return JSONResponse({"pages": pages_urls})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur Cloudinary: {e}")
 
 
 # -----------------------------
